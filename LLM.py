@@ -1,6 +1,21 @@
 import httpx
 import ollama
 import time
+import spacy
+import string
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    print("Spacy model not found. Downloading the model...")
+    spacy.cli.download("en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
+
+def extract_text(path):
+    with open(path, 'r') as file:
+        text = file.read()
+    
+    return text
+    
 
 def score_applicant_responses(questions, answers):
     try:
@@ -8,6 +23,7 @@ def score_applicant_responses(questions, answers):
         input_text = ""
         for question, answer in zip(questions, answers):
             input_text += f"Q: {question}\nA: {answer}\n\n"
+        
         
         response = ollama.chat(model='llama3', messages=[
             {
@@ -26,26 +42,40 @@ def score_applicant_responses(questions, answers):
         print(f"An unexpected error occurred while scoring the responses: {e}")
         return None
 
+def parse(keywords, textfile):
+    foundwords = set()
+    doc = nlp(textfile)
+    for token in doc:
+        if token.text.lower() in keywords:
+            foundwords.add(token.text)
+    
+    score = len(foundwords)/len(keywords)
+    
+    return score*100
+    
+    
+           
+        
+
 if __name__ == "__main__":
     # Example input
-    questions = [
-        "What is your experience with data analysis?",
-        "Can you describe a project where you used machine learning?",
-        "How do you handle tight deadlines?"
-    ]
-    answers = [
-        "I have over 3 years of experience in data analysis, working with tools like SQL, Python, and Excel to analyze and interpret data.",
-        "In my recent project, I developed a machine learning model to predict customer churn using logistic regression. This helped the company reduce churn by 15%.",
-        "I prioritize tasks, break down large projects into smaller tasks, and use tools like Trello to manage my workflow effectively to meet deadlines."
-    ]
+    questions = ["What is your experience with data analysis?"]
+    answers = ["I have over 3 years of experience in data analysis, working with tools like SQL, Python, and Excel to analyze and interpret data."]
+
+    key_words = ["python","machine", "learning","data science","sql"]
     
     start_time = time.time()
     
-    score = score_applicant_responses(questions, answers)
-    if score:
-        print(f"Applicant's Answer Quality Score: {score}")
-    else:
-        print("Failed to score the responses.")
+
+    text = extract_text("/Users/keshavgoel/Desktop/Vdart-1/ Python, Python, Python, SQL, machine learning.")
+
+    score = score_applicant_responses(questions, text).split(':')[1]
+    
+    print(f"Applicant's Answer Quality Score: {score}")
+
+    
+    print(parse(key_words,text))
+
     
     end_time = time.time()
     print(f"Execution Time: {end_time - start_time} seconds")
